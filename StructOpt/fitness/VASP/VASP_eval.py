@@ -16,10 +16,7 @@ import logging
 import time
 
 class VASP_eval(object):
-    def __init__(self, Optimizer, individ):
-
-        self.Optimizer = Optimizer
-        self.individ = individ 
+    def __init__(self):
         self.args = self.read_inputs()
         for k,v in self.args.items():
             setattr(self,k,v)
@@ -30,7 +27,7 @@ class VASP_eval(object):
 
     def setup_mast_inp(self, Optimizer, individ, args, relax):
         
-        tmp = os.path.join(os.environ["HOME"],"StructOpt/StructOpt/fitness/mast_template.inp")
+        tmp = os.path.join(os.environ["HOME"],"StructOpt/StructOpt/fitness/VASP/mast_template.inp")
         with open(tmp,'r') as fp:
             mastfile = fp.read()
         
@@ -64,26 +61,26 @@ class VASP_eval(object):
     def setup_vasp(self, Optimizer, args):
         return setup_energy_calculator(Optimizer,'VASP')
 
-    def evaluate_fitness(self, relax=False):
+    def evaluate_fitness(self, Optimizer, individ, relax=False):
         rank = MPI.COMM_WORLD.Get_rank()
         energies = []
 
         if rank == 0:
-            out = self.evaluate_indiv(self.individ, relax)
+            out = self.evaluate_indiv(Optimizer, individ, relax)
             out = zip(*out)
         else:
             out = None
         out = MPI.COMM_WORLD.bcast(out, root=0)
         return out
     
-    def evaluate_indiv(self, individ, relax):
-        logger = logging.getLogger(self.Optimizer.loggername)
+    def evaluate_indiv(self, Optimizer, individ, relax):
+        logger = logging.getLogger(Optimizer.loggername)
         logger.info('Setting up MAST input for individual evaluation with VASP')
 
-        self.setup_mast_inp(self.Optimizer, individ, self.args, relax)
+        self.setup_mast_inp(Optimizer, individ, self.args, relax)
         num = 0
         for ind in individ:
-            totalsol = compose_structure(self.Optimizer,ind)
+            totalsol = compose_structure(Optimizer,ind)
             write_vasp('POSCAR_Indiv%s'%num, totalsol, direct=True, vasp5=True)
             num += 1
         #try:
@@ -111,7 +108,7 @@ class VASP_eval(object):
         for files in glob.glob("loop_*.inp"):
             os.remove(files)
         
-        logger.info('Completed setting up MAST jobs for individual evaluation of generation #%s'%self.Optimizer.generation)
+        logger.info('Completed setting up MAST jobs for individual evaluation of generation #%s'%Optimizer.generation)
         logger.info("Type 'mast' to manually submit VASP jobs or wait for crontab for submission.")
 
         while True:
@@ -133,7 +130,7 @@ class VASP_eval(object):
             logger.info(finished)
             logger.info(running)
             if complete == len(individ):
-               logger.info('Finished VASP jobs for all individuals of generation #%s'%self.Optimizer.generation) 
+               logger.info('Finished VASP jobs for all individuals of generation #%s'%Optimizer.generation) 
                break
             time.sleep(60)
         
@@ -149,7 +146,7 @@ class VASP_eval(object):
             else:
                 stro.append('Evaluated energy of individual %s to be %s\n'%(individ[i].history_index,individ[i].energy))
             totalsol = read_vasp(os.path.join(ingred, 'CONTCAR'))
-            individ[i], bul = decompose_structure(self.Optimizer,totalsol,individ[i])
+            individ[i], bul = decompose_structure(Optimizer,totalsol,individ[i])
         
             shutil.rmtree(os.path.join(archive,ind_folders[i])) # either remove or zip ??
 
