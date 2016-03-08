@@ -28,10 +28,7 @@ except:
     pass
 
 class STEM_eval(object):
-    def __init__(self, Optimizer, individ):
-        self.Optimizer = Optimizer
-        self.individ = individ
-        #self.fitness = 0
+    def __init__(self):
         self.args = self.read_inputs()
         for k,v in self.args.items():
             setattr(self,k,v)
@@ -43,17 +40,17 @@ class STEM_eval(object):
         args['psf'] = numpy.reshape(numpy.array(psf_data.split(),dtype=float),[args['pixels']]*2)
         return args
 
-    def evaluate_fitness(self):
+    def evaluate_fitness(self, Optimizer, individ):
         comm = MPI.COMM_WORLD
         rank = MPI.COMM_WORLD.Get_rank()
 
         if rank==0:
-            ntimes=int(math.ceil(1.*len(self.individ)/comm.Get_size()))
-            nadd=int(ntimes*comm.Get_size()-len(self.individ))
+            ntimes=int(math.ceil(1.*len(individ)/comm.Get_size()))
+            nadd=int(ntimes*comm.Get_size()-len(individ))
             maplist=[[] for n in range(ntimes)]
             strt=0
             for i in range(len(maplist)):
-                maplist[i]=[indi for indi in self.individ[strt:comm.Get_size()+strt]]
+                maplist[i]=[indi for indi in individ[strt:comm.Get_size()+strt]]
                 strt+=comm.Get_size()
             for i in range(nadd):
                 maplist[len(maplist)-1].append(None)
@@ -73,16 +70,16 @@ class STEM_eval(object):
                 stro = 'Evaluated none individual on {0}\n'.format(rank)
                 out = (None, stro)
             else:
-                out = self.evaluate_indiv(ind, rank)
+                out = self.evaluate_indiv(Optimizer, ind, rank)
 
             outt = comm.gather(out,root=0)
             if rank == 0:
                 outs.extend(outt)
         return outs
 
-    def evaluate_indiv(self, individ, rank):
+    def evaluate_indiv(self, Optimizer, individ, rank):
 
-        logger = logging.getLogger(self.Optimizer.loggername)
+        logger = logging.getLogger(Optimizer.loggername)
 
         logger.info('Received individual HI = {0} for STEM evaluation'.format(
             individ.history_index))

@@ -29,10 +29,17 @@ class Optimizer():
         for k,v in self.args.items():
             setattr(self,k,v)
         
-        self.imported_modules = []
+        self.relaxation_module = None # Currently only one relaxation module
+        if self.relaxation:
+            mod = import_module('StructOpt.fitness.%s_eval'%self.relaxation)
+            cls = getattr(mod, '%s_eval'%self.relaxation)
+            self.relaxation_module = cls()
+        
+        self.fitness_modules = []
         for m in self.modules:
             mod = import_module('StructOpt.fitness.%s_eval'%m)
-            self.imported_modules.append(getattr(mod, '%s_eval'%m))
+            cls = getattr(mod, '%s_eval'%m)
+            self.fitness_modules.append(cls())
         
         if self.loggername:
             global logger
@@ -153,9 +160,7 @@ class Optimizer():
 
             if self.relaxation:
                 stro += 'Relaxing structure using %s\n'%self.relaxation
-                mod = import_module('StructOpt.fitness.%s_eval'%self.relaxation)
-                relax_mod = getattr(mod, '%s_eval'%self.relaxation)
-                relax_out = relax_mod(Opti, indiv).evaluate_fitness(True)
+                relax_out = self.relaxation_module.evaluate_fitness(Opti, indiv, True)
                 
                 if rank==0:
                     for i in range(len(indiv)):
@@ -163,9 +168,9 @@ class Optimizer():
                         stro += relax_out[i][1]
             
             fits = []
-            for mod in self.imported_modules:
-                stro += 'Evaluating fitness with module %s\n'%mod
-                out_part = mod(Opti, indiv).evaluate_fitness()
+            for m in range(len(self.modules)): 
+                stro += 'Evaluating fitness with module %s\n'%self.modules[m]
+                out_part = self.fitness_modules[m].evaluate_fitness(Opti, indiv)
                 fm = []
                 for i in range(len(out_part)):
                     fm.append(out_part[i][0])
@@ -176,7 +181,7 @@ class Optimizer():
             if rank==0:
                 logger.info('Individual fitnesses of Generation #{0}'.format(self.generation))
                 for i in range(len(indiv)):
-                    fi = [fits[m][i] for m in range(len(self.imported_modules))]
+                    fi = [fits[m][i] for m in range(len(self.fitness_modules))]
                     if None in fi:
                         pass
                     else:

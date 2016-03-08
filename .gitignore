@@ -1,1 +1,25 @@
+.DS_Store
+#no autosave file
+*~
 *.pyc
+# no log file and pickle files
+*.log
+*.pkl
+
+pymatgen.egg-info
+dependencies/PyCifRW-3.3/PyCifRW.egg-info
+dependencies/spglib-1.2.2/pyspglib.egg-info
+dependencies/spglib-1.2.2/build
+*.o
+*.so
+pymatgen/pymatgen.cfg
+dist
+_build
+build
+.project
+.pydevproject
+.settings
+.externalToolBuilders
+.idea
+distribute*.egg
+distribute*.tar.gz

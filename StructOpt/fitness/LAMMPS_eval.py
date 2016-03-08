@@ -29,11 +29,8 @@ import random
 #from StructOpt.tools.serial_for import serial_for
 
 class LAMMPS_eval(object):
-    def __init__(self, Optimizer, individ):
+    def __init__(self):
         
-        self.Optimizer = Optimizer 
-        self.individ = individ
-        #self.fitness = 0
         self.args = self.read_inputs()
         for k,v in self.args.items():
             setattr(self,k,v)
@@ -45,18 +42,18 @@ class LAMMPS_eval(object):
         args = json.load(open('lammps_inp.json'))
         return args
 
-    def evaluate_fitness(self, relax=False):
+    def evaluate_fitness(self, Optimizer, individ, relax=False):
         comm = MPI.COMM_WORLD
         rank = MPI.COMM_WORLD.Get_rank()
         
         if rank==0:
-            ntimes=int(math.ceil(1.*len(self.individ)/comm.Get_size()))
+            ntimes=int(math.ceil(1.*len(individ)/comm.Get_size()))
             
-            nadd=int(ntimes*comm.Get_size()-len(self.individ))
+            nadd=int(ntimes*comm.Get_size()-len(individ))
             maplist=[[] for n in range(ntimes)]
             strt=0
             for i in range(len(maplist)):
-                maplist[i]=[indi for indi in self.individ[strt:comm.Get_size()+strt]]
+                maplist[i]=[indi for indi in individ[strt:comm.Get_size()+strt]]
                 strt+=comm.Get_size()
             for i in range(nadd):
                 maplist[len(maplist)-1].append(None)
@@ -77,16 +74,16 @@ class LAMMPS_eval(object):
                 stro = 'Evaluated none individual on {0}\n'.format(rank)
                 out = (None, stro)
             else:
-                out = self.evaluate_indiv(ind, rank, relax)
+                out = self.evaluate_indiv(Optimizer, ind, rank, relax)
 
             outt = comm.gather(out,root=0)
             if rank == 0:
                 outs.extend(outt)
         return outs
     
-    def evaluate_indiv(self, individ, rank, relax):
+    def evaluate_indiv(self, Optimizer, individ, rank, relax):
 
-        logger = logging.getLogger(self.Optimizer.loggername)
+        logger = logging.getLogger(Optimizer.loggername)
         if relax:
             logger.info('Received individual HI = {0} for LAMMPS structure relaxation'.format(
                 individ.history_index))
@@ -96,22 +93,22 @@ class LAMMPS_eval(object):
         
         STR='----Individual ' + str(individ.history_index)+ ' Optimization----\n'
         indiv=individ[0]
-        if 'EE' in self.Optimizer.debug:
+        if 'EE' in Optimizer.debug:
             debug = True
         else:
             debug = False
         if debug: 
-            write_xyz(self.Optimizer.debugfile,indiv,'Received by evaluate_fitness')
-            self.Optimizer.debugfile.flush()
+            write_xyz(Optimizer.debugfile,indiv,'Received by evaluate_fitness')
+            Optimizer.debugfile.flush()
             logger.debug('Writing received individual to debug file')
         
         
-        totalsol = compose_structure(self.Optimizer,individ)
+        totalsol = compose_structure(Optimizer,individ)
 
         # Set calculator to use to get forces/energies
-        if self.Optimizer.parallel:
-            calc = self.setup_lammps(self.Optimizer, self.args, relax)
-            if self.Optimizer.fixed_region:
+        if Optimizer.parallel:
+            calc = self.setup_lammps(Optimizer, self.args, relax)
+            if Optimizer.fixed_region:
                 if debug:
                     logger.info('Setting up fixed region calculator')
                 pms=copy.deepcopy(calc.parameters)
@@ -124,24 +121,24 @@ class LAMMPS_eval(object):
                 if debug:
                     logger.info('Setting up no local minimization calculator')
                 self.args['minimize'] = None
-                self.args['static_calc'] = self.setup_lammps(self.Optimizer, self.args, relax)
+                self.args['static_calc'] = self.setup_lammps(Optimizer, self.args, relax)
                 self.args['minimize'] = lmin
         else:
-            calc=self.Optimizer.calc
+            calc=Optimizer.calc
         totalsol.set_calculator(calc)
         totalsol.set_pbc(True)
         
         # Perform Energy Minimization
-        if not self.Optimizer.parallel:
+        if not Optimizer.parallel:
             if debug: 
-                write_xyz(self.Optimizer.debugfile,totalsol,'Individual sent to Energy Minimizer')
+                write_xyz(Optimizer.debugfile,totalsol,'Individual sent to Energy Minimizer')
                 logger.debug('Writing structure sent to energy minimizer')
         try:
             cwd = os.getcwd()
             if debug:
                 logger.info('Running local energy calculator')
-            if self.Optimizer.fixed_region:
-                totalsol, pea, energy, pressure, volume, STR = self.run_energy_eval(totalsol, self.Optimizer.fixed_region, STR, self.args['static_calc'])
+            if Optimizer.fixed_region:
+                totalsol, pea, energy, pressure, volume, STR = self.run_energy_eval(totalsol, Optimizer.fixed_region, STR, self.args['static_calc'])
             else:
                 totalsol, pea, energy, pressure, volume, STR = self.run_energy_eval(totalsol, False, STR)
                 logger.info('M:finish run_energy_eval, energy = {0} @ rank ={1}'.format(energy,rank))
@@ -156,33 +153,33 @@ class LAMMPS_eval(object):
             shutil.copyfile(calc.logfile,os.path.join(path,os.path.basename(calc.logfile)))
             shutil.copyfile(calc.datafile,os.path.join(path,os.path.basename(calc.datafile)))
             raise RuntimeError('{0}:{1}'.format(Exception,e))
-        if not self.Optimizer.parallel:
+        if not Optimizer.parallel:
             if debug:
-                write_xyz(self.Optimizer.debugfile,totalsol,'Individual after Energy Minimization')
-                self.Optimizer.debugfile.flush()
+                write_xyz(Optimizer.debugfile,totalsol,'Individual after Energy Minimization')
+                Optimizer.debugfile.flush()
                 logger.debug('Writing structure received from energy minimizer')
        
         
-        individ, bul = decompose_structure(self.Optimizer,totalsol,individ)
+        individ, bul = decompose_structure(Optimizer,totalsol,individ)
         
         # Add concentration energy dependence
-        if self.Optimizer.forcing=='energy_bias':
+        if Optimizer.forcing=='energy_bias':
             if debug:
                 logger.info('Applying energy bias for atoms with different number of atoms of type than in atomlist')
-            n=[0]*len(self.Optimizer.atomlist)
-            for i in range(len(self.Optimizer.atomlist)):
-                n[i]=len([inds for inds in totalsol if inds.symbol==self.Optimizer.atomlist[i][0]])
-                n[i]=abs(n[i]-self.Optimizer.atomlist[i][1])
+            n=[0]*len(Optimizer.atomlist)
+            for i in range(len(Optimizer.atomlist)):
+                n[i]=len([inds for inds in totalsol if inds.symbol==Optimizer.atomlist[i][0]])
+                n[i]=abs(n[i]-Optimizer.atomlist[i][1])
             factor=sum(n)**3
             energy=(energy+factor)/totalsol.get_number_of_atoms()
             STR+='Energy with Bias = {0}\n'.format(energy)
-        elif self.Optimizer.forcing=='chem_pot':
+        elif Optimizer.forcing=='chem_pot':
             if debug:
                 logger.info('Applying chemical potential bias for atoms with different number of atoms of type than in atomlist')
-            n=[0]*len(self.Optimizer.atomlist)
-            for i in range(len(self.Optimizer.atomlist)):
-                n[i]=len([inds for inds in totalsol if inds.symbol==self.Optimizer.atomlist[i][0]])
-                n[i]=n[i]*self.Optimizer.atomlist[i][3]
+            n=[0]*len(Optimizer.atomlist)
+            for i in range(len(Optimizer.atomlist)):
+                n[i]=len([inds for inds in totalsol if inds.symbol==Optimizer.atomlist[i][0]])
+                n[i]=n[i]*Optimizer.atomlist[i][3]
             factor=sum(n)
             energy=(energy+factor)/totalsol.get_number_of_atoms()
             STR+='Energy with Chemical Potential = {0}\n'.format(energy)
@@ -194,13 +191,13 @@ class LAMMPS_eval(object):
 
         ##Add pealist to include atom index based on sorted PE. 
         #logger.info('before sort{0}'.format(individ.energy))
-        #self.sort_pealist(self.Optimizer,individ,pea)
+        #self.sort_pealist(Optimizer,individ,pea)
         #energy = individ.energy
         #logger.info('after sort {0}'.format(individ.energy)) 
-        if self.Optimizer.fingerprinting:
+        if Optimizer.fingerprinting:
             if debug:
                 logger.info('Identifying fingerprint of new structure')
-            individ.fingerprint=get_fingerprint(self.Optimizer,individ,self.Optimizer.fpbin,self.Optimizer.fpcutoff)
+            individ.fingerprint=get_fingerprint(Optimizer,individ,Optimizer.fpbin,Optimizer.fpcutoff)
         
         calc.clean()
         if relax:
@@ -210,7 +207,7 @@ class LAMMPS_eval(object):
         signal += STR
 
         #self.fitness = energy
-        if self.Optimizer.structure == 'Defect' or self.Optimizer.structure=='Surface':
+        if Optimizer.structure == 'Defect' or Optimizer.structure=='Surface':
             individ.bulki = bul
        
 
