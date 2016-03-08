@@ -2,7 +2,7 @@ import json
 import random
 
 
-class Random(object):
+class Random_eval(object):
     def __init__(self):
         self.step_number = 0
 
@@ -21,5 +21,5 @@ class Random(object):
             self.args[key] = value
 
 
-    def fitness(self, individuals):
+    def evaluate_fitness(self, individuals):
         return [random.random() for _ in individuals]

@@ -16,8 +16,8 @@ class Optimizer(object):
         self.weights = []
 
         for i, module in enumerate(modules):
-            imported = importlib.import_module("MAST.structopt.fitness.{module}.{module}".format(module=module))
-            cls = getattr(imported, module)  # Get class from module
+            imported = importlib.import_module("StructOpt.fitness.{module}.{module}_eval".format(module=module))
+            cls = getattr(imported, '{cls_name}_eval'.format(cls_name=module))  # Get class from module
             self.add_module(cls(), weights[i])
 
         self.relaxation_method = relaxation_method
@@ -39,7 +39,7 @@ class Optimizer(object):
     def objective_function(self):
         fitnesses = np.array([0.0 for _ in self.individuals])
         for module, weight in zip(self.modules, self.weights):
-            fitness = np.array(module.fitness(self.individuals))
+            fitness = np.array(module.evaluate_fitness(self.individuals))
             fitnesses += weight*fitness
         return fitnesses
 
