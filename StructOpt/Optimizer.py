@@ -31,8 +31,8 @@ class Optimizer():
         
         self.imported_modules = []
         for m in self.modules:
-            mod = import_module('StructOpt.fitness.%s_eval'%m)
-            self.imported_modules.append(getattr(mod, '%s_eval'%m))
+            mod = import_module('StructOpt.fitness.{module_name}.{module_name}_eval'.format(module_name=m))  # Import the module package
+            self.imported_modules.append(getattr(mod, '{cls_name}_eval'.format(cls_name=m)))  # Get's the class from the module package
         
         if self.loggername:
             global logger
