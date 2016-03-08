@@ -27,7 +27,7 @@ class VASP_eval(object):
 
     def setup_mast_inp(self, Optimizer, individ, args, relax):
         
-        tmp = os.path.join(os.environ["HOME"],"StructOpt/StructOpt/fitness/mast_template.inp")
+        tmp = os.path.join(os.environ["HOME"],"StructOpt/StructOpt/fitness/VASP/mast_template.inp")
         with open(tmp,'r') as fp:
             mastfile = fp.read()
         

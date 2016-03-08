@@ -31,14 +31,14 @@ class Optimizer():
         
         self.relaxation_module = None # Currently only one relaxation module
         if self.relaxation:
-            mod = import_module('StructOpt.fitness.%s_eval'%self.relaxation)
-            cls = getattr(mod, '%s_eval'%self.relaxation)
+            mod = import_module('StructOpt.fitness.{module_name}.{module_name}_eval'.format(module_name=self.relaxation))  # Import the module package
+            cls = getattr(mod, '{cls_name}_eval'.format(cls_name=self.relaxation))  # Get's the class from the module package
             self.relaxation_module = cls()
         
         self.fitness_modules = []
         for m in self.modules:
-            mod = import_module('StructOpt.fitness.%s_eval'%m)
-            cls = getattr(mod, '%s_eval'%m)
+            mod = import_module('StructOpt.fitness.{module_name}.{module_name}_eval'.format(module_name=m))  # Import the module package
+            cls = getattr(mod, '{cls_name}_eval'.format(cls_name=m))  # Get's the class from the module package
             self.fitness_modules.append(cls())
         
         if self.loggername:
