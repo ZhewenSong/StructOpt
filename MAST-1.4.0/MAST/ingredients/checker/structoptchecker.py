@@ -15,10 +15,10 @@ from MAST.ingredients.checker import LammpsChecker
 from MAST.submit import queue_commands
 from pymatgen.core.structure import Structure
 from pymatgen.io.aseio import AseAtomsAdaptor
-from MAST.structopt.Optimizer import Optimizer
-from MAST.structopt import post_processing as pp
-from MAST.structopt import inp_out
-from MAST.structopt.switches import fitness_switch
+from StructOpt.Optimizer import Optimizer
+from StructOpt import post_processing as pp
+from StructOpt import inp_out
+from StructOpt.switches import fitness_switch
 
 class StructoptChecker(BaseChecker):
     
@@ -712,7 +712,7 @@ class StructoptChecker(BaseChecker):
                 self.logger.info("TTM passflag: %s" % passflag)
                 if passflag:
                     if MyOpti.structure=='Defect':
-                        from MAST.structopt.tools import find_defects
+                        from StructOpt.tools import find_defects
                         outt=find_defects(myatoms.copy(), MyOpti.solidbulk, MyOpti.sf,
                             atomlistcheck=MyOpti.atomlist,trackvacs=MyOpti.trackvacs,
                             trackswaps=MyOpti.trackswaps,debug=False)
@@ -836,7 +836,7 @@ class StructoptChecker(BaseChecker):
                     #indatoms.set_calculator(LennardJones())
                     #dyn = BFGS(indatoms)
                     #dyn.run(fmax=0.01, steps=500)
-                    #from MAST.structopt.tools.eval_energy import check_min_dist
+                    #from StructOpt.tools.eval_energy import check_min_dist
                     min_len = 1.8 #Minimum distance between 2 atoms in angstroms
                     from ase.calculators.neighborlist import NeighborList
                     from ase import Atom, Atoms

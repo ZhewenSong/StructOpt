@@ -27,7 +27,7 @@ class VASP_eval(object):
 
     def setup_mast_inp(self, Optimizer, individ, args, relax):
         
-        tmp = os.path.join(os.environ["HOME"],"StructOpt/StructOpt/fitness/VASP/mast_template.inp")
+        tmp = os.path.join(os.environ["STRUCTOPT_INSTALL_PATH"],"StructOpt/fitness/VASP/mast_template.inp")
         with open(tmp,'r') as fp:
             mastfile = fp.read()
         
@@ -63,7 +63,6 @@ class VASP_eval(object):
 
     def evaluate_fitness(self, Optimizer, individ, relax=False):
         rank = MPI.COMM_WORLD.Get_rank()
-        energies = []
 
         if rank == 0:
             out = self.evaluate_indiv(Optimizer, individ, relax)

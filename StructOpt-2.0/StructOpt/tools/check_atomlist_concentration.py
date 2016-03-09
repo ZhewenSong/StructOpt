@@ -28,7 +28,7 @@ def check_atomlist_concentration(atomlist,natoms, loggername=None):
         else:
             catmlist = copy.copy(atomlist)
     elif checkal == 100:
-        if natms != 100:
+        if natoms != 100:
             if loggername:
                 logger.info('Assuming atom list concentrations give as percent of total atoms')
             natmlist=[(atomlist[i][0],int(round(natoms*atomlist[i][1]/100)),atomlist[i][2],atomlist[i][3]) for i in range(len(atomlist))]
