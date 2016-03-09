@@ -1,0 +1,6 @@
+@misc{MAST-development-team2014,
+author = {MAST-development-team},
+title = {{MAterials Simulation Toolkit (MAST)}},
+url = {http://pypi.python.org/pypi/MAST http://pythonhosted.org/MAST},
+year = {2014}
+}

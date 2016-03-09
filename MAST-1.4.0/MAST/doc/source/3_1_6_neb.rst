@@ -1,0 +1,70 @@
+###################################
+The NEB section
+###################################
+
+The ``$neb`` section includes a subsection for each nudged-elastic-band hops. 
+
+*  Each neb hop should be a subsection labeled with a name composed of a starting and ending defect group, connected with a dash, like ``vac1-vac2``.
+
+    *  These labels should correspond exactly to the labels given in :doc:`3_1_5_defects`.
+    
+*  The subsection should also include the movement of each primary moving atom, including:
+
+    *  The atom's element symbol: if an ``elementmap`` subsection is given in :doc:`3_1_1_structure`, then the mapped designations ``X1``, ``X2``, and so on can be given instead of an element symbol.
+    
+    *  The starting and ending .defect group. as specified in the ``$defects`` section, and then also indicate the movement of elements, and their closest starting and ending positions. These explicit positions disambiguate between possible interpolations.
+
+    *  The ``images`` keyword, which specifies the number of intermediate images.
+
+Again, the ``$neb`` section is tied to specific defect labels. The NEB ingredients must be able to find defects or defect groups with those labels.
+
+===================
+Charges for NEBs
+===================
+To enable charged-supercell NEBs, use <Q> tags for the defect and NEB ingredients in :doc:`3_1_3_recipe` and also specify charges for the defects in :doc:`3_1_5_defects`.
+
+The NEB ingredients will only be run for charges in the charge ranges of both parent endpoints.
+
+For example, if defect parent vac1 has a charge range of charge=-2,0 and defect parent vac2 has a charge range of charge=-1,3, then the NEB with the label vac1-vac2 will only run with supercell charges -1 and 0.
+
+===================
+Phonons for NEBs
+===================
+
+Phonons may be specified within each NEB grouping, as in :doc:`3_1_5_defects`.
+
+The presumed saddle point in an NEB is usually taken.
+
+*  To give the saddle point structure to the phonon calculation, in :doc:`3_1_2_ingredients`, use ``mast_update_children give_saddle_structure`` for the NEB ingredient type of the NEB parent to the phonon calculation.
+
+*  If the frequencies of a moving atom are desired for the phonon calculations, and if that atom is anticipated to pass from fractional coordinate 0 0 0 to fractional coordinate 0.5 0 0, then the phonon_center_site should be 0.25 0 0 (assuming a straight path), and the phonon_center_radius is probably about 1 Angstrom. 
+
+Example defect and NEB section together::
+
+    $defects
+    
+    coord_type fractional
+    threshold 1e-4
+    
+    vacancy 0.0 0.0 0.0 Mg label=vac1
+    vacancy 0.0 0.5 0.5 Mg label=vac2
+    interstitial 0.25 0.0 0.0 Al label=int1
+    interstitial 0.0 0.25 0.0 Al label=int2
+    
+    $end
+    
+    $neb
+    
+    begin vac1-vac2
+    images 1
+    Mg, 0 0 0, 0 .5 0.5
+    end
+    
+    begin int1-int2
+    Al, 0.25 0 0, 0 0.25 0
+    images 3
+    phonon movingatom 0.125 0.125 0.0 1.0
+    end
+    
+    $end
+

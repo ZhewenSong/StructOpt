@@ -1,0 +1,22 @@
+#!/bin/bash
+# 1. Remember to set up your .pypirc file
+# 2. Remember to upload new documentation to pythonhosted.org
+
+###Uncomment to test
+#python setup.py register -r pypitest sdist upload -r pypitest
+
+###Uncomment to really upload
+python setup.py register -r pypi sdist upload -r pypi
+
+
+###For Anaconda installation to separate environment for package testing
+### conda create -n <environment name> numpy scipy matplotlib nose sphinx
+### source activate <environment name>
+### cd ~/anaconda/envs/<environment name>
+### pip install --cert ssl/cacert.pem MAST 
+### OR
+### pip install --cert ssl/cacert.pem pymatgen
+### pip install --cert ssl/cacert.pem custodian
+### pip install -i https://testpypi.python.org/pypi --cert ssl/cacert.pem MAST
+###
+### and then manual ase installation
