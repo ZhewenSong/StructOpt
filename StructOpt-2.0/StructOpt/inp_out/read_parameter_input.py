@@ -312,9 +312,9 @@ def read_parameter_input(input, logger):
     if 'cell_shape_options' not in parameters:
         parameters['cell_shape_options'] = ['cubic', 'hexagonal', 'triclinic', \
         'monoclinic', 'orthorhombic', 'tetragonal']
-    if rank==0:
-        if parameters['structure'] == 'Crystal':
-            logger.info('Assuming following cell shape options: {0}'.format(parameters['cell_shape_options']))
+        if rank==0:
+            if parameters['structure'] == 'Crystal':
+                logger.info('Assuming following cell shape options: {0}'.format(parameters['cell_shape_options']))
     if 'alloy' not in parameters:
         parameters['alloy'] = True
         if rank==0:
