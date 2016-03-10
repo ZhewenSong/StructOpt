@@ -65,8 +65,15 @@ class VASP_eval(object):
         rank = MPI.COMM_WORLD.Get_rank()
 
         if rank == 0:
+            cwd = os.getcwd()
+            try:
+                os.mkdir('{filename}-rank0/VASPFiles'.format(filename=Optimizer.filename))
+            except OSError:
+                pass
+            os.chdir('{filename}-rank0/VASPFiles'.format(filename=Optimizer.filename))
             out = self.evaluate_indiv(Optimizer, individ, relax)
             out = zip(*out)
+            os.chdir(cwd)
         else:
             out = None
         out = MPI.COMM_WORLD.bcast(out, root=0)

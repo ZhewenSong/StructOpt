@@ -4,8 +4,8 @@ import sys
 import json
 import time
 import numpy as np
-import ase.io
 import os
+from StructOpt.inp_out.write_xyz import write_xyz
 import logging
 import math
 import shutil
@@ -22,6 +22,7 @@ class FEMSIM_eval(object):
 
     def read_inputs(self):
         args = json.load(open('femsim_inp.json'))
+
         data = open(args['vk_data_filename']).readlines()
         data.pop(0)  # Comment line
         data = [line.strip().split()[:2] for line in data]
@@ -42,9 +43,8 @@ class FEMSIM_eval(object):
             self.args[key] = value
 
     def evaluate_fitness(self, Optimizer, individ):
-        comm = MPI.COMM_WORLD
         rank = MPI.COMM_WORLD.Get_rank()
-
+        out = []
         if rank==0:
             femsimfiles = '{filename}-rank0/FEMSIMFiles'.format(filename=Optimizer.filename)
             try:
@@ -52,84 +52,56 @@ class FEMSIM_eval(object):
             except OSError:
                 pass
             
-            ntimes=int(math.ceil(1.*len(individ)/comm.Get_size()))
-            nadd=int(ntimes*comm.Get_size()-len(individ))
-            maplist=[[] for n in range(ntimes)]
-            strt=0
-            for i in range(len(maplist)):
-                maplist[i]=[indi for indi in individ[strt:comm.Get_size()+strt]]
-                strt+=comm.Get_size()
-            for i in range(nadd):
-                maplist[len(maplist)-1].append(None)
-        else:
-            ntimes=None
-        ntimes = comm.bcast(ntimes,root=0)
-        outs=[]
-        for i in range(ntimes):
-            if rank==0:
-                one=maplist[i]
-            else:
-                one=None
-            ind = comm.scatter(one,root=0)
-
-            if ind == None:
-                rank = MPI.COMM_WORLD.Get_rank()
-                stro = 'Evaluated none individual on {0}\n'.format(rank)
-                out = (None, stro)
-            else:
+            for i in range(len(individ)):
+                indiv_folder = '{filename}-rank0/FEMSIMFiles/Individual{i}'.format(filename=Optimizer.filename,i=i)
                 try:
-                    os.mkdir('{filename}-rank0/FEMSIMFiles/rank-{r}'.format(filename=Optimizer.filename,r=rank))
+                    os.mkdir(indiv_folder)
                 except OSError:
                     pass
-                out = self.evaluate_indiv(Optimizer, ind, rank)
+                if not os.path.isfile(os.path.join(indiv_folder,self.args['vk_data_filename'])):
+                    shutil.copy(self.args['vk_data_filename'], os.path.join(indiv_folder,self.args['vk_data_filename']))
+                cwd = os.getcwd()
+                os.chdir('{filename}-rank0/FEMSIMFiles/Individual{i}'.format(filename=Optimizer.filename,i=i))
+                out.append(self.evaluate_indiv(Optimizer, individ[i], i))
+                os.chdir(cwd)
 
-            outt = comm.gather(out,root=0)
-            if rank == 0:
-                outs.extend(outt)
-        return outs
+        out = MPI.COMM_WORLD.bcast(out, root=0)
+        return out
 
-    def evaluate_indiv(self, Optimizer, individ, rank):
+    def evaluate_indiv(self, Optimizer, individ, i):
 
         logger = logging.getLogger(Optimizer.loggername)
 
         logger.info('Received individual HI = {0} for FEMSIM evaluation'.format(
             individ.history_index))
         
-        cwd = os.getcwd()
         
-        os.chdir('{filename}-rank0/FEMSIMFiles/rank-{r}'.format(filename=Optimizer.filename,r=rank))
-        
-        if not os.path.isfile(self.args['vk_data_filename']):
-            shutil.copy(os.path.join(cwd,self.args['vk_data_filename']),self.args['vk_data_filename'])
         paramfilename = self.args['parameter_filename']
         paramfilename = paramfilename.split('.')
         paramfilename[-2] = '{head}_{i}'.format(head=paramfilename[-2], i=individ.history_index) 
         paramfilename = '.'.join(paramfilename)
-        
-        self.write_paramfile(paramfilename, Optimizer, individ, rank)
+
+        self.write_paramfile(paramfilename, Optimizer, individ, i)
 
         base = 'indiv{i}'.format(i=individ.history_index)
         self.run_femsim(base=base, paramfilename=paramfilename)
         vk = self.get_vk_data(base)
 
         chisq = self.chi2(vk)
-        logger.info('M:finish chi2 evaluation, chi2 = {0} @ rank = {1}'.format(chisq,rank))
-        stro = 'Evaluated individual {0} @ rank = {1}\n'.format(individ.history_index,rank)
+        logger.info('M:finish chi2 evaluation, chi2 = {0}'.format(chisq))
+        stro = 'Evaluated individual {0}\n'.format(individ.history_index)
         
-        os.chdir(cwd)
         return chisq, stro
 
 
-    def write_paramfile(self, paramfilename, Optimizer, individ, rank):
+    def write_paramfile(self, paramfilename, Optimizer, individ, i):
         # Write structure file to disk so that the fortran femsim can read it in
-        ase.io.write('structure_{i}.xyz'.format(i=individ.history_index), individ[0])
-        # Replace comment line
-        lines = open('structure_{i}.xyz'.format(i=individ.history_index)).readlines()
-        lines[1] = "{} {} {}\n".format(self.args['xsize'], self.args['ysize'], self.args['zsize'])
-        open('structure_{i}.xyz'.format(i=individ.history_index), 'w').write(''.join(lines))
-
+        #ase.io.write('structure_{i}.xyz'.format(i=individ.history_index), individ[0])
+        data = "{} {} {}".format(self.args['xsize'], self.args['ysize'], self.args['zsize'])
+        write_xyz('structure_{i}.xyz'.format(i=individ.history_index), individ[0], data)
+        
         with open(paramfilename, 'w') as f:
-            f.write('# Parameter file for generation {gen}, individual {i} @ rank {r}\n'.format(gen=Optimizer.generation, i=individ.history_index, r=rank))
+            f.write('# Parameter file for generation {gen}, individual {i}\n'.format(gen=Optimizer.generation, i=individ.history_index))
             f.write('{}\n'.format('structure_{i}.xyz'.format(i=individ.history_index)))
             f.write('{}\n'.format(self.args['vk_data_filename']))
             f.write('{}\n'.format(self.args['Q']))
